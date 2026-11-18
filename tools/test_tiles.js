@@ -175,6 +175,18 @@ const texts = (ps, d, t) => ps.filter((p) => p.kind === 'text').map((p) => (type
             slots.forEach((k) => assert(ts.indexOf(view(k, d, metric).short) >= 0, k + ' not named: ' + ts.join('|')));
         }
     });
+    await check('page: the value, the small text under it and the bar never overlap, at either size, in every style but the arc', () => {
+        ['normal', 'large'].forEach((size) => ['bar', 'number'].forEach((style) => {
+            const ps = pieces(opts({ size, style, slots: ['oil', 'coolant', 'gearbox', 'consumption', 'tripConsumption', 'iat'] }));
+            const by = (suffix) => ps.filter((p) => p.key && p.key.endsWith(suffix));
+            by('.sub').forEach((sub) => {
+                const tile = sub.key.replace(/\.sub$/, '');
+                const val = ps.find((p) => p.key === tile + '.val'), bar = ps.find((p) => p.key === tile + '.bar');
+                assert(val.y + val.h <= sub.y + 1, size + ' ' + style + ' ' + tile + ': value runs into the small text');
+                if (bar) assert(sub.y + sub.h <= bar.y + 1, size + ' ' + style + ' ' + tile + ': small text runs into the bar');
+            });
+        }));
+    });
     await check('page: the consumption tile shows the regeneration under its value while electric, the fuel flow while the engine runs', () => {
         const t = palette('blue');
         const ts = (engine) => texts(pieces(opts({ slots: ['consumption'] })), sample({ engine }), t);

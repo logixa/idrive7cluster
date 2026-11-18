@@ -2,7 +2,7 @@
   "id": "cluster_tiles",
   "title": "Cluster Tiles",
   "description": "Six live data tiles in the centre of the factory cluster (oil, coolant, gearbox and intake air temperature, fuel or electric consumption with regeneration, and more): you choose what each tile shows",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "startType": "autostart",
   "vendor": "custom",
   "loggingId": "OA9T",

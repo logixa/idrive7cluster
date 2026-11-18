@@ -104,8 +104,9 @@ function tile(group, key, x, y, w, h, reading, style, o, sub) {
     }
     out.push(text(id + '.unit', group, x + w * 0.62, y + 14, w * 0.38 - 14, 20, (d) => (longUnit(d) ? '' : v(d).unit), plain('dim'), { align: 1, tracking: 0.08 }));
     const big = style === 'number';
-    const valH = Math.round(Math.min(h * (big ? 0.5 : 0.44), big ? 120 : 96) * k);
     const vy = y + 44;
+    // the value (larger at size 'large') leaves room under it for the line of small text and, in bar tiles, the bar
+    const valH = Math.max(24, Math.min(Math.round(Math.min(h * (big ? 0.5 : 0.44), big ? 120 : 96) * k), (big ? y + h - 10 : y + h - 26) - vy - (sub ? 24 + 4 : 4)));
     out.push(text(id + '.val', group, x + 14, vy, w - 28, valH, (d) => v(d).text, (t, d) => ({ color: [levelColour(t, v(d).level), 1], glow: [accentOf(t, d), 0.3 * ST.glow] }), { align: 0 }));
     if (sub) out.push(text(id + '.sub', group, x + 14, vy + valH + 6, w - 28, 18, sub, plain('dim'), { align: 0, tracking: 0.08 }));
     const sy = vy + valH + (sub ? 30 : 8), sh = y + h - (big ? 10 : 26) - sy;
