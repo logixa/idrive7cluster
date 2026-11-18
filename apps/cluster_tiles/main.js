@@ -49,6 +49,8 @@ function half(d, w, h) {
 function previewSig(d) { let h = 0; for (let i = 0; i < d.length; i += 997) h = (h * 31 + d[i]) | 0; return d.length + ':' + h; }
 const PAGE = 'tiles';
 const TILES = [1, 2, 3, 4, 5, 6];
+// what the tiles show until the settings say otherwise
+const DEFAULT_TILES = ['oil', 'coolant', 'gearbox', 'consumption', 'iat', 'outside'];
 
 mgu.run({
     async start(ctx) {
@@ -60,7 +62,10 @@ mgu.run({
 
         /* ---------- options for the page ---------- */
         // the readings the six tiles show, in order ('Nothing' leaves a tile out: the rest share the space)
-        const slots = () => TILES.map((i) => settings.get('tile' + i)).filter((k) => k && k !== 'none' && READINGS[k]);
+        // (the six tiles are saved as tile1 ... tile6; the settings list has one drop-down, "Reading for that tile", for the tile
+        // chosen in "Tile to set": a drop-down per tile would use up the HMI's string budget)
+        const tileOf = (i) => { const v = settings.get('tile' + i); return v !== undefined ? v : DEFAULT_TILES[i - 1]; };
+        const slots = () => TILES.map(tileOf).filter((k) => k && k !== 'none' && READINGS[k]);
         // a Cluster Layouts layout covers the whole panel: the page waits while one shows
         const blockedByLayout = () => presence.active('layouts');
         const options = () => ({
@@ -90,12 +95,12 @@ mgu.run({
         setInterval(wantNow, 1000);
 
         /* ---------- settings per driver profile ---------- */
-        const PROFILE_KEYS = settings.schema.map((s) => s.key).filter((k) => k !== 'show' && k !== 'demo');
+        const PROFILE_KEYS = settings.schema.map((s) => s.key).filter((k) => ['show', 'demo', 'tileSel', 'tileReading'].indexOf(k) < 0).concat(TILES.map((i) => 'tile' + i));
         const PROFILE_FILE = path.join(ctx.dataDir, 'profiles.json');
         let profiles = {}, applying = false, profile = null;
         try { profiles = JSON.parse(fs.readFileSync(PROFILE_FILE, 'utf8')) || {}; } catch (e) { /* none yet */ }
         const saveProfiles = () => { try { fs.writeFileSync(PROFILE_FILE, JSON.stringify(profiles)); } catch (e) { log.warn('profiles: ' + e); } };
-        const snapshot = () => { const o = {}; PROFILE_KEYS.forEach((k) => { o[k] = settings.get(k); }); return o; };
+        const snapshot = () => { const o = {}; PROFILE_KEYS.forEach((k) => { o[k] = k.slice(0, 4) === 'tile' ? tileOf(Number(k.slice(4))) : settings.get(k); }); return o; };
         ctx.signals.watch('de.bmw.infotainment.personalization.SessionManager', 'de.bmw.infotainment.personalization.SessionManager', {
             currentUserAccountReference: (v) => {
                 const id = typeof v === 'string' ? v : v && (v.value || v.currentUserAccountReference);
@@ -105,6 +110,7 @@ mgu.run({
                     applying = true;
                     PROFILE_KEYS.forEach((k) => { if (profiles[profile][k] !== undefined && profiles[profile][k] !== settings.get(k)) settings.set(k, profiles[profile][k]); });
                     applying = false;
+                    showEdited();
                     log.info('driver profile ' + profile + ': their settings');
                     rebuild();
                 } else { profiles[profile] = snapshot(); saveProfiles(); log.info('driver profile ' + profile + ': first seen'); }
@@ -116,7 +122,14 @@ mgu.run({
             cluster.setGroup(PAGE);
             wantNow();
         }
+        // the drop-down shows the reading of the tile chosen above it, and a choice in it goes to that tile
+        let syncing = false;
+        const editing = () => Math.max(1, Math.min(6, Number(settings.get('tileSel')) || 1));
+        const showEdited = () => { syncing = true; try { settings.set('tileReading', tileOf(editing())); } finally { syncing = false; } };
+        showEdited();
         settings.onChange((k, v) => {
+            if (!syncing && k === 'tileSel') showEdited();
+            if (!syncing && k === 'tileReading' && v !== tileOf(editing())) settings.set('tile' + editing(), v);
             if (!applying && profile && PROFILE_KEYS.indexOf(k) >= 0) { profiles[profile] = Object.assign(profiles[profile] || snapshot(), { [k]: v }); saveProfiles(); }
             if (applying || k === 'show' || k === 'demo') return;
             if (k === 'accent') return cluster.recolour();

@@ -28,14 +28,14 @@ const texts = (ps, d, t) => ps.filter((p) => p.kind === 'text').map((p) => (type
 
 (async () => {
     /* ---------- the settings ---------- */
-    await check('settings: six tiles, each offering Nothing and every reading; defaults are readings', () => {
-        for (let i = 1; i <= 6; i++) {
-            const s = SPEC.settings.find((x) => x.key === 'tile' + i);
-            assert(s && s.type === 'choice', 'tile' + i);
-            assert.deepStrictEqual(s.options.map((o) => o[0]).sort(), ['none'].concat(Object.keys(READINGS)).sort());
-            assert.deepStrictEqual(s.options.slice(0, 49).map((o) => o[0]), ['none'].concat(Object.keys(READINGS).slice(0, 48)));
-            assert(s.options.some((o) => o[0] === s.default), 'tile' + i + ' default');
-        }
+    await check('settings: one list of every reading for the six tiles (Tile to set + Reading for that tile); defaults are readings', () => {
+        const sel = SPEC.settings.find((x) => x.key === 'tileSel'), rd = SPEC.settings.find((x) => x.key === 'tileReading');
+        assert(sel && sel.type === 'choice' && sel.options.length === 6);
+        assert(rd && rd.type === 'choice');
+        assert.deepStrictEqual(rd.options.map((o) => o[0]).sort(), ['none'].concat(Object.keys(READINGS)).sort());
+        assert.deepStrictEqual(rd.options.slice(0, 49).map((o) => o[0]), ['none'].concat(Object.keys(READINGS).slice(0, 48)));
+        assert(rd.options.some((o) => o[0] === rd.default));
+        assert(!SPEC.settings.some((x) => /^tile[1-6]$/.test(x.key)), 'no drop-down per tile (the HMI string budget)');
         // what the car owner asked for is on offer: the temperatures, the consumption with regeneration, intake air
         ['oil', 'coolant', 'gearbox', 'iat', 'consumption', 'fuelCons', 'elecCons', 'regen', 'regenPct'].forEach((k) => assert(READINGS[k], k));
     });

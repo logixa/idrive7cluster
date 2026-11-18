@@ -1,0 +1,26 @@
+name: Tests
+
+# The kit runtime and the app against stand-ins (no SDK, renderer or car needed).
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node kit/tools/test_runtime.js
+      # test_shared checks the app's copies of shared/ are current
+      # (tools/test_built.js needs the SDK, so it runs locally only)
+      - run: |
+          for t in tiles data awake providers kwfuse shared signals build_budget; do
+            echo "== $t"
+            node tools/test_$t.js
+          done

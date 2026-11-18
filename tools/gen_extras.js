@@ -133,9 +133,16 @@ fs.writeFileSync(path.join(ROOT, 'shared', 'extras_data.js'),
 const appFile = path.join(ROOT, 'apps', 'cluster_tiles', 'app.json');
 const app = JSON.parse(fs.readFileSync(appFile, 'utf8'));
 const label = (r) => r.group + ' > ' + r.title + (UNITS[r.kind] || r.unit ? ' [' + (r.kind === 'raw' ? r.unit : UNITS[r.kind]) + ']' : '') + (r.q ? ' (estimated scale)' : '');
-const base = app.settings.find((s) => s.key === 'tile1').options.filter((o) => !/^(s|d):/.test(o[0]));
+const base = (app.settings.find((s) => s.key === 'tileReading') || app.settings.find((s) => s.key === 'tile1')).options.filter((o) => !/^(s|d):/.test(o[0]));
 const extra = out.slice().sort((a, b) => (a.group === b.group ? 0 : a.group < b.group ? -1 : 1)).map((r) => [r.key, label(r)]);
-app.settings.forEach((s) => { if (/^tile[1-6]$/.test(s.key)) s.options = base.concat(extra); });
+// one drop-down for all six tiles: the HMI's string bundle holds 1024 strings, one per drop-down row (kit/tools/localize.py)
+const TILE_NAMES = ['Tile 1 (top left)', 'Tile 2 (top middle)', 'Tile 3 (top right)', 'Tile 4 (bottom left)', 'Tile 5 (bottom middle)', 'Tile 6 (bottom right)'];
+const at = app.settings.findIndex((s) => /^tile[1-6]$/.test(s.key) || s.key === 'tileSel' || s.key === 'tileReading');
+const rest = app.settings.filter((s) => !(/^tile[1-6]$/.test(s.key) || s.key === 'tileSel' || s.key === 'tileReading'));
+rest.splice(at, 0,
+    { key: 'tileSel', label: 'Tile to set', type: 'choice', default: '1', options: TILE_NAMES.map((n, i) => [String(i + 1), n]) },
+    { key: 'tileReading', label: 'Reading for that tile', type: 'choice', default: 'oil', options: base.concat(extra) });
+app.settings = rest;
 
 // signals: what the car signal values need, flags as the installed apps declare them (tools/known_signals.json)
 const known = JSON.parse(fs.readFileSync(path.join(__dirname, 'known_signals.json'), 'utf8')).signals;
