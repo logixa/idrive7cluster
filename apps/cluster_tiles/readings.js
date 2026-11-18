@@ -44,6 +44,7 @@ const READINGS = {
     avgIndividual: { title: "Average consumption, Individual (the car's own, as in the head unit)", short: 'AVG INDIV', icon: 4, kind: 'l100', min: 0, max: 20 },
     avgRefuel: { title: "Average consumption since refuelling (the car's own, as in the head unit)", short: 'AVG REFUEL', icon: 4, kind: 'l100', min: 0, max: 20 },
     avgStart: { title: "Average consumption since the start of the journey (the car's own, as in the head unit)", short: 'AVG START', icon: 4, kind: 'l100', min: 0, max: 20 },
+    avgRaw: { title: "Check: the fields of the car's average consumption (one at a time, name under the value)", short: 'CHECK AVG', icon: 4, kind: 'raw', min: 0, max: 1000 },
     tripConsumption: { title: 'Average consumption this trip (fuel, or electric while no fuel was used)', short: 'TRIP AVG', icon: 4, kind: 'l100', min: 0, max: 20 },
     tripFuelCons: { title: 'Average fuel consumption this trip (L/100 km)', short: 'TRIP AVG FUEL', icon: 4, kind: 'l100', min: 0, max: 20 },
     tripElecCons: { title: 'Average electric consumption this trip (kWh/100 km)', short: 'TRIP AVG ELEC', icon: 7, kind: 'kwh100', min: -10, max: 40 },

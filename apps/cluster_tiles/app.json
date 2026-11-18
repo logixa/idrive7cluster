@@ -2,7 +2,7 @@
   "id": "cluster_tiles",
   "title": "Cluster Tiles",
   "description": "Six live data tiles in the centre of the factory cluster (oil, coolant, gearbox and intake air temperature, fuel or electric consumption with regeneration, and more): you choose what each tile shows",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "startType": "autostart",
   "vendor": "custom",
   "loggingId": "OA9T",
@@ -316,6 +316,10 @@
         [
           "avgStart",
           "Average consumption since the start of the journey (the car's own, as in the head unit)"
+        ],
+        [
+          "avgRaw",
+          "Check: the fields of the car's average consumption (one at a time, name under the value)"
         ],
         [
           "tripConsumption",

@@ -273,6 +273,9 @@ function startData(ctx, opts) {
         // the period (and, for the electric one, for electricity); the raw value goes to the log ('raw averageConsumption')
         averageConsumption: (v) => {
             fes('averageConsumption')(v);
+            // every field as it comes, for the 'Check: average consumption fields' reading
+            x.avgLeaves = leaves(v).filter((l) => isNum(l.v)).map((l) => ({ key: String(l.key), v: l.v }));
+            x.at.avgLeaves = Date.now();
             leaves(v).forEach((l) => {
                 if (!isNum(l.v) || l.v === 255 || l.v === 65535 || l.v === 0x7FFF || l.v < 0) return;
                 const k = String(l.key);
@@ -577,6 +580,11 @@ function startData(ctx, opts) {
             }
             // the readings that move fast (air flow, fuel flow, the car's power meter) are only good a few seconds
             ['maf', 'fuelRate', 'pwrDrive', 'pwrRecup', 'carElecCons', 'carFuelCons'].concat(['Factory', 'Individual', 'Refuel', 'Start'].reduce((a, p) => a.concat(['avg' + p + 'Fuel', 'avg' + p + 'Elec']), [])).forEach((k) => { if (!d.demo && fresh(k, 5000)) o[k] = x[k]; });
+            // the check reading: one field of the car's average consumption signal at a time, every 3 seconds
+            if (!d.demo && x.avgLeaves && x.avgLeaves.length) {
+                const lf = x.avgLeaves[Math.floor(Date.now() / 3000) % x.avgLeaves.length];
+                o.avgRaw = lf.v; (o.__u || (o.__u = {})).avgRaw = lf.key.replace(/^consumption/i, '').slice(-16).toUpperCase();
+            }
             // boost: the engine unit's (fast, while a layout wants it), else the car's sport display signal
             if (!isNum(o.boostActual) && !d.demo && fresh('boostCar', 5000)) o.boostActual = x.boostCar;
             if (d.demo) Object.assign(o, demo(d));
