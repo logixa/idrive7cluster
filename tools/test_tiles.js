@@ -33,7 +33,8 @@ const texts = (ps, d, t) => ps.filter((p) => p.kind === 'text').map((p) => (type
         assert(sel && sel.type === 'choice' && sel.options.length === 6);
         assert(rd && rd.type === 'choice');
         assert.deepStrictEqual(rd.options.map((o) => o[0]).sort(), ['none'].concat(Object.keys(READINGS)).sort());
-        assert.deepStrictEqual(rd.options.slice(0, 49).map((o) => o[0]), ['none'].concat(Object.keys(READINGS).slice(0, 48)));
+        const curated = Object.keys(READINGS).filter((k) => !READINGS[k].group);
+        assert.deepStrictEqual(rd.options.slice(0, curated.length + 1).map((o) => o[0]), ['none'].concat(curated));
         assert(rd.options.some((o) => o[0] === rd.default));
         assert(!SPEC.settings.some((x) => /^tile[1-6]$/.test(x.key)), 'no drop-down per tile (the HMI string budget)');
         // what the car owner asked for is on offer: the temperatures, the consumption with regeneration, intake air
@@ -98,6 +99,12 @@ const texts = (ps, d, t) => ps.filter((p) => p.kind === 'text').map((p) => (type
             d = D.data();
             assert.strictEqual(d.consumptionKind, 'fuel'); assert.strictEqual(d.engineOn, true);
             assert(Math.abs(d.fuelCons - 7.2) < 1e-9, String(d.fuelCons)); assert.strictEqual(d.consumption, d.fuelCons);
+            // the car's own averages (head unit: Factory / Individual / Refuelling / Start of journey), by field name
+            handlers.averageConsumption({ consumptionFuelAverageFactory: 81, consumptionFuelAverageRefuel: 64, consumptionFuelAverageStartOfJourney: 59 });
+            d = D.data();
+            assert(Math.abs(d.avgFactoryFuel - 8.1) < 1e-9 && Math.abs(d.avgRefuelFuel - 6.4) < 1e-9 && Math.abs(d.avgStartFuel - 5.9) < 1e-9, JSON.stringify([d.avgFactoryFuel, d.avgRefuelFuel, d.avgStartFuel]));
+            const av = require(path.join(APP, 'readings')).view('avgStart', d, { temp: 'c', press: 'bar', speed: 'kmh', torque: 'nm' });
+            assert.strictEqual(av.text, '5.9'); assert.strictEqual(av.short, 'AVG START');
             // no car field: the engine unit's fuel flow (6.58 L/h at 80 km/h = 8.2 L/100 km); air flow is not used
             const D2 = startData(ctx, { shown: () => false });
             const h2 = handlers;
@@ -132,6 +139,20 @@ const texts = (ps, d, t) => ps.filter((p) => p.kind === 'text').map((p) => (type
             const rv = require(path.join(APP, 'readings')).view('s:handbrake', e, { temp: 'c', press: 'bar', speed: 'kmh', torque: 'nm' });
             assert.strictEqual(rv.text, 'applied'); assert.strictEqual(rv.level, 'ok');
             D3.stop();
+            // this trip: fuel and electricity over the distance since the car woke up (60 km/h at 4.2 L/h = 7.0 L/100 km)
+            const D4 = startData(ctx, { shown: () => false });
+            if (h2.VehicleCondition) h2.VehicleCondition({ statusConditionVehicle: 'FAHREN' });
+            h2.statusCarSpeed2({ speedVehicleCentreOfGravity: Math.round(60 / 0.015625) });
+            h2.statusEngineSpeed2({ actualValueRPMEngineCrankshaft: 2000 / 0.25 });
+            D4.inject('fuelRate', 4.2); D4.data();
+            for (const end = Date.now() + 80; Date.now() < end;) { /* a little time passes */ }
+            D4.inject('fuelRate', 4.2);
+            e = D4.data();
+            assert(e.tripDist > 0 && e.tripFuel > 0, JSON.stringify([e.tripDist, e.tripFuel]));
+            assert(Math.abs(e.tripFuel / e.tripDist * 100 - 7) < 0.05, String(e.tripFuel / e.tripDist * 100));
+            const tv = require(path.join(APP, 'readings')).view('tripConsumption', Object.assign({}, e, { tripFuelCons: 7.0, tripFuel: 1 }), { temp: 'c', press: 'bar', speed: 'kmh', torque: 'nm' });
+            assert.strictEqual(tv.text, '7.0'); assert.strictEqual(tv.unit, 'L/100KM');
+            D4.stop();
         } finally { D.stop(); }
     });
 
@@ -163,8 +184,8 @@ const texts = (ps, d, t) => ps.filter((p) => p.kind === 'text').map((p) => (type
     await check('page: the consumption tile shows the regeneration under its value while electric, the fuel flow while the engine runs', () => {
         const t = palette('blue');
         const ts = (engine) => texts(pieces(opts({ slots: ['consumption'] })), sample({ engine }), t);
-        assert(ts('off').indexOf('REGEN 9.2 KW') >= 0, ts('off').join('|'));
-        assert(ts('on').indexOf('6.2 L/H') >= 0, ts('on').join('|'));
+        assert(ts('off').indexOf('REGEN 9.2 KW') >= 0 && ts('off').indexOf('ELEC KWH/100KM') >= 0, ts('off').join('|'));
+        assert(ts('on').indexOf('L/100KM  6.2 L/H') >= 0, ts('on').join('|'));
         const d = Object.assign(sample({ engine: 'off' }), { regen: undefined });
         assert(texts(pieces(opts({ slots: ['consumption'] })), d, t).indexOf('REGEN 55 %') >= 0, 'without the battery power: the car\'s own meter');
     });

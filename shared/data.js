@@ -269,6 +269,20 @@ function startData(ctx, opts) {
             const fl = leaves(v).find((l) => isNum(l.v) && l.v !== 255 && l.v !== 65535 && l.v !== 0x7FFF && l.v >= 0 && /fuel|kraftstoff|benzin|diesel/i.test(l.key) && /consum|verbrauch/i.test(l.key));
             if (fl) put('carFuelCons', fl.v > 60 ? fl.v / 10 : fl.v);
         },
+        // the averages the head unit offers (Factory, Individual, Refuelling, Start of journey): any field named for
+        // the period (and, for the electric one, for electricity); the raw value goes to the log ('raw averageConsumption')
+        averageConsumption: (v) => {
+            fes('averageConsumption')(v);
+            leaves(v).forEach((l) => {
+                if (!isNum(l.v) || l.v === 255 || l.v === 65535 || l.v === 0x7FFF || l.v < 0) return;
+                const k = String(l.key);
+                const period = /factory|werk|delivery|lifetime/i.test(k) ? 'Factory' : /individual|indiv|user|custom/i.test(k) ? 'Individual'
+                    : /refuel|tank|fill/i.test(k) ? 'Refuel' : /journey|trip|start|fahrt|reise/i.test(k) ? 'Start' : null;
+                if (!period) return;
+                const elec = /elec|elektr|strom|kwh|ev/i.test(k);
+                put('avg' + period + (elec ? 'Elec' : 'Fuel'), elec ? (l.v > 100 ? l.v / 10 : l.v) : (l.v > 30 ? l.v / 10 : l.v));
+            });
+        },
     }, 'consumption now', { pollMs: 2000 });
     // the cruise control's set speed as the head-up display shows it (the driving assistant's view services send nothing
     // on this car): 0 or invalid while it is off; in the display's unit
@@ -478,6 +492,41 @@ function startData(ctx, opts) {
         else { smooth[k] = { t, v: s.v + (v - s.v) * Math.min(1, (t - s.t) / 1500) }; }
         return smooth[k].v;
     };
+    /*
+     * This trip: since the car woke up (a trip ends when the car has been off for 10 minutes), the fuel burnt and the
+     * electricity used (battery power; negative while recuperating) over the distance driven, added up from the
+     * readings as they come (only while they are asked for: the fuel flow always, see main.js). Kept in trip.json so
+     * a restart of the app in the middle of a trip does not lose it.
+     */
+    const TRIP_FILE = ctx.dataDir ? require('path').join(ctx.dataDir, 'trip.json') : null;
+    const trip = { dist: 0, fuel: 0, kwh: 0, last: 0, offAt: 0, saved: 0 };
+    try {
+        const j = TRIP_FILE && JSON.parse(require('fs').readFileSync(TRIP_FILE, 'utf8'));
+        if (j && Date.now() - j.at < 600000) { trip.dist = j.dist || 0; trip.fuel = j.fuel || 0; trip.kwh = j.kwh || 0; }
+    } catch (e) { /* none yet */ }
+    function tripOf(o, t) {
+        const on = awake.on();
+        if (!on) trip.offAt = trip.offAt || t;
+        else {
+            if (trip.offAt && t - trip.offAt > 600000) { trip.dist = 0; trip.fuel = 0; trip.kwh = 0; }
+            trip.offAt = 0;
+        }
+        if (trip.last && t > trip.last && t - trip.last < 5000 && on) {
+            const h = (t - trip.last) / 3600000, sp = isNum(o.speed) ? o.speed : 0;
+            trip.dist += sp * h;
+            const lph = isNum(o.fuelRate) ? o.fuelRate : isNum(o.carFuelCons) && sp > 5 ? o.carFuelCons / 100 * sp : undefined;
+            if (isNum(lph) && o.engineOn !== false) trip.fuel += lph * h;
+            if (isNum(o.kw)) trip.kwh += o.kw * h;
+        }
+        trip.last = t;
+        o.tripDist = trip.dist; o.tripFuel = trip.fuel; o.tripKwh = trip.kwh;
+        o.tripFuelCons = trip.dist > 0.5 ? trip.fuel / trip.dist * 100 : undefined;
+        o.tripElecCons = trip.dist > 0.5 ? trip.kwh / trip.dist * 100 : undefined;
+        if (TRIP_FILE && t - trip.saved > 30000) {
+            trip.saved = t;
+            try { require('fs').writeFileSync(TRIP_FILE, JSON.stringify({ at: Date.now(), dist: trip.dist, fuel: trip.fuel, kwh: trip.kwh })); } catch (e) { /* read-only */ }
+        }
+    }
     function consumptionOf(o, d, t) {
         const speed = isNum(o.speed) ? o.speed : null, moving = speed !== null && speed > 5, off = o.engineOn === false;
         let lph = isNum(o.fuelRate) ? o.fuelRate : undefined;
@@ -493,6 +542,7 @@ function startData(ctx, opts) {
         o.drivePct = isNum(o.pwrDrive) ? o.pwrDrive : undefined;
         o.consumptionKind = off ? 'electric' : o.engineOn ? 'fuel' : isNum(o.elecCons) ? 'electric' : 'fuel';
         o.consumption = o.consumptionKind === 'electric' ? o.elecCons : o.fuelCons;
+        tripOf(o, t);
     }
 
     return {
@@ -526,7 +576,7 @@ function startData(ctx, opts) {
                 wantedSig.forEach((k) => { const sv = sigs.value(k, { press: carPress }); if (sv) { o[k] = sv.v; if (sv.u) (o.__u || (o.__u = {}))[k] = sv.u; } });
             }
             // the readings that move fast (air flow, fuel flow, the car's power meter) are only good a few seconds
-            ['maf', 'fuelRate', 'pwrDrive', 'pwrRecup', 'carElecCons', 'carFuelCons'].forEach((k) => { if (!d.demo && fresh(k, 5000)) o[k] = x[k]; });
+            ['maf', 'fuelRate', 'pwrDrive', 'pwrRecup', 'carElecCons', 'carFuelCons'].concat(['Factory', 'Individual', 'Refuel', 'Start'].reduce((a, p) => a.concat(['avg' + p + 'Fuel', 'avg' + p + 'Elec']), [])).forEach((k) => { if (!d.demo && fresh(k, 5000)) o[k] = x[k]; });
             // boost: the engine unit's (fast, while a layout wants it), else the car's sport display signal
             if (!isNum(o.boostActual) && !d.demo && fresh('boostCar', 5000)) o.boostActual = x.boostCar;
             if (d.demo) Object.assign(o, demo(d));

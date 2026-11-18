@@ -81,11 +81,16 @@ const label = (key, group, x, y, w, txt, extra) => { const e = Object.assign({ a
 function tile(group, key, x, y, w, h, reading, style, o, sub) {
     const id = group + '.' + key, k = o.size === 'large' ? 1.2 : 1, r = READINGS[reading] || {};
     const v = (d) => view(reading, d, o.units, o.warn);
+    // a unit of more than four characters (L/100KM, KWH/100KM, an extra reading's own) does not fit beside the name:
+    // bar and number tiles show it under the value instead
+    const longUnit = (d) => { const u = v(d).unit; return u && u.length > 4 ? u : ''; };
+    const unitUnder = style !== 'arc' && !sub && ['l100', 'kwh100', 'raw'].indexOf(r.kind) >= 0 && reading !== 'consumption';
+    if (unitUnder) sub = longUnit;
     const accentOf = (t, d) => levelAccent(t, v(d).level);
     // sized to be read at a glance while driving: the page is shrunk to fit between the stock readouts (0.76)
     const out = [card(id + '.card', group, x, y, w, h),
         icon(id + '.icon', group, x + 12, y + 11, 26, reading === 'consumption' ? (d) => v(d).icon : r.icon || 0, accentOf),
-        label(id + '.lbl', group, x + 46, y + 14, w * 0.62, reading === 'consumption' ? (d) => v(d).short : r.short || reading, { h: 20, tracking: 0.1 })];
+        label(id + '.lbl', group, x + 46, y + 14, reading === 'consumption' && style !== 'arc' ? w - 60 : w * 0.62, reading === 'consumption' ? (d) => (style !== 'arc' && d.consumptionKind === 'electric' ? 'ELEC KWH/100KM' : v(d).short) : r.short || reading, { h: 20, tracking: 0.1 })];
     if (style === 'arc') {
         // the arc's ends dip below its centre (by R cos 62°): R and the centre keep all of it in the card
         const ah = h - 34, R = Math.min(w / 2 - 26, (ah - 26) / 1.47), cy = 14 + R, T = Math.max(10, R * 0.15);
@@ -97,7 +102,7 @@ function tile(group, key, x, y, w, h, reading, style, o, sub) {
         if (sub) out.push(text(id + '.sub', group, x, vy + valH + 24, w, 14, sub, plain('dim'), { tracking: 0.08 }));
         return out;
     }
-    out.push(text(id + '.unit', group, x + w * 0.62, y + 14, w * 0.38 - 14, 20, (d) => v(d).unit, plain('dim'), { align: 1, tracking: 0.08 }));
+    out.push(text(id + '.unit', group, x + w * 0.62, y + 14, w * 0.38 - 14, 20, (d) => (longUnit(d) ? '' : v(d).unit), plain('dim'), { align: 1, tracking: 0.08 }));
     const big = style === 'number';
     const valH = Math.round(Math.min(h * (big ? 0.5 : 0.44), big ? 120 : 96) * k);
     const vy = y + 44;
@@ -134,20 +139,22 @@ function slotted(group, keys, style, o, subs) {
 /* What the engine unit has to be asked for (data.js want(): the keys it reads fast) for a reading on a tile. */
 const NEEDS = {
     iat: ['iat'], iatRise: ['iat'], gearbox: ['gearbox'], hpfp: ['hpfp'], lpfp: ['lpfp'], boostActual: ['boostActual'], boostTarget: ['boostTarget'],
-    timing: ['timing'], consumption: ['fuelRate'], fuelCons: ['fuelRate'], fuelRate: ['fuelRate'], maf: ['maf'],
+    timing: ['timing'], consumption: ['fuelRate'], avgFactory: [], avgIndividual: [], avgRefuel: [], avgStart: [], fuelCons: ['fuelRate'], fuelRate: ['fuelRate'], maf: ['maf'],
     loadActual: ['loadActual'], loadTarget: ['loadTarget'], throttle: ['throttle'],
 };
 const needsOf = (slots) => Array.from(new Set([].concat(...slots.map((k) => NEEDS[k] || (/^[sd]:/.test(k) ? [k] : [])))));
 
 /* Under the value of the consumption tile: while electric, how much is being recuperated (the battery power
  * below zero, else the car's own power meter); while the engine runs, the fuel flow. */
-const consSub = (d) => {
+const consSub = (withUnit) => (d) => {
+    // (a long unit does not fit beside the name: bar and number tiles show it here, under the value)
+    const unit = withUnit && d.consumptionKind !== 'electric' ? 'L/100KM' : '';
+    let more = '';
     if (d.consumptionKind === 'electric') {
-        if (isNum(d.regen)) return d.regen > 0.3 ? 'REGEN ' + d.regen.toFixed(1) + ' KW' : 'NO REGEN';
-        if (isNum(d.regenPct)) return d.regenPct > 0 ? 'REGEN ' + Math.round(d.regenPct) + ' %' : 'NO REGEN';
-        return '';
-    }
-    return isNum(d.fuelRate) ? d.fuelRate.toFixed(1) + ' L/H' : '';
+        if (isNum(d.regen)) more = d.regen > 0.3 ? 'REGEN ' + d.regen.toFixed(1) + ' KW' : 'NO REGEN';
+        else if (isNum(d.regenPct)) more = d.regenPct > 0 ? 'REGEN ' + Math.round(d.regenPct) + ' %' : 'NO REGEN';
+    } else if (isNum(d.fuelRate)) more = d.fuelRate.toFixed(1) + ' L/H';
+    return unit && more ? unit + '  ' + more : unit || more;
 };
 
 const PAGES = {
@@ -156,7 +163,7 @@ const PAGES = {
         // the six tiles, as the settings pick them (a tile set to 'Nothing' leaves a gap-free grid of the rest)
         build: (o, g) => {
             const slots = (o.slots && o.slots.length ? o.slots : ['oil', 'coolant', 'gearbox', 'consumption', 'iat', 'outside']);
-            return slotted(g, slots, o.style, o, slots.map((k) => (k === 'consumption' ? consSub : null)));
+            return slotted(g, slots, o.style, o, slots.map((k) => (k === 'consumption' ? consSub(o.style !== 'arc') : null)));
         },
         needsOf: (o) => needsOf((o.slots && o.slots.length) ? o.slots : []),
     },

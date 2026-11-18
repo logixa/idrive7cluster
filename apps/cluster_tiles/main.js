@@ -89,7 +89,8 @@ mgu.run({
             group: PAGE,
         });
         // the engine unit is asked (fast) only for what the six tiles show
-        const wantNow = () => data.want(needsOf(slots()));
+        // (the fuel flow always: this trip's consumption adds it up from the start of the trip, whichever tiles show)
+        const wantNow = () => data.want(needsOf(slots()).concat('fuelRate'));
         cluster.setGroup(PAGE);
         wantNow();
         setInterval(wantNow, 1000);

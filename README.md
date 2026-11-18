@@ -9,7 +9,7 @@
 
 An app for the BMW iDrive 7 head unit (MGU): **six tiles of live data in the centre of the instrument cluster**,
 drawn by the cluster itself. Each tile shows whatever you pick in the app's settings (Tile 1 ... Tile 6), from
-every reading in [READINGS.md](READINGS.md): the 48 below, every other signal the car sends the head unit and the
+every reading in [READINGS.md](READINGS.md): the 54 below, every other signal the car sends the head unit and the
 engine unit's values (temperatures, oil, fuel, boost, ignition, VANOS, lambda, 12 V ...). Which reading goes in which
 tile is set one tile at a time, in the app's **Settings**.
 
@@ -29,7 +29,7 @@ The default tiles:
 
 ## What each tile can show
 
-The 48 curated readings (listed first in each tile's setting); [READINGS.md](READINGS.md) has the rest.
+The 54 curated readings (listed first in each tile's setting); [READINGS.md](READINGS.md) has the rest.
 
 | Reading | Settings key |
 |---|---|
@@ -59,6 +59,13 @@ The 48 curated readings (listed first in each tile's setting); [READINGS.md](REA
 | Electric consumption now (kWh/100 km, negative = recuperating) | elecCons |
 | Fuel flow (L/h) | fuelRate |
 | Air mass flow (g/s) | maf |
+| Average consumption since delivery / Individual / since refuelling / since the start of the journey (the car's own, as in the head unit) | avgFactory, avgIndividual, avgRefuel, avgStart |
+| Average consumption this trip (fuel, or electric while no fuel was used) | tripConsumption |
+| Average fuel consumption this trip (L/100 km) | tripFuelCons |
+| Average electric consumption this trip (kWh/100 km) | tripElecCons |
+| Distance of this trip | tripDist |
+| Fuel used this trip (litres) | tripFuel |
+| Electricity used this trip (kWh) | tripKwh |
 | Regeneration power (kW, from the battery power) | regen |
 | Regeneration (% of the car's power meter) | regenPct |
 | Electric drive (% of the car's power meter) | drivePct |
@@ -134,3 +141,6 @@ node tools/preview_tiles.js --tiles oil,coolant,gearbox,consumption,iat,outside 
 Tests need only Node.js; the preview also needs `playwright` with Chromium. Building the package
 (`python3 kit/tools/build.py cluster_tiles`) needs BMW's `oap-sdk`, extracted from your own head unit; the built
 packages and the SDK are never committed.
+
+
+**This trip** is counted from when the car wakes up (a trip ends when the car has been off for 10 minutes): the fuel flow and the battery power added up over the distance driven. The car's own trip computer averages (Fuel and trip computer group) are the car's, and may be since delivery or since a reset.

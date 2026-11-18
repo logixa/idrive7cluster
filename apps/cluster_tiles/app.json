@@ -90,7 +90,8 @@
     },
     "de.bmw.infotainment.resetlogic.ResetLogic": {
       "_optional": "the consumption now (a candidate for the fast kW)",
-      "currentConsumption": "rs"
+      "currentConsumption": "rs",
+      "averageConsumption": "rs"
     },
     "de.bmw.infotainment.displaydataserver.DisplayDataServer": {
       "_optional": "the cruise control's set speed",
@@ -299,6 +300,46 @@
         [
           "maf",
           "Air mass flow (g/s)"
+        ],
+        [
+          "avgFactory",
+          "Average consumption since delivery (the car's own, as in the head unit: Factory)"
+        ],
+        [
+          "avgIndividual",
+          "Average consumption, Individual (the car's own, as in the head unit)"
+        ],
+        [
+          "avgRefuel",
+          "Average consumption since refuelling (the car's own, as in the head unit)"
+        ],
+        [
+          "avgStart",
+          "Average consumption since the start of the journey (the car's own, as in the head unit)"
+        ],
+        [
+          "tripConsumption",
+          "Average consumption this trip (fuel, or electric while no fuel was used)"
+        ],
+        [
+          "tripFuelCons",
+          "Average fuel consumption this trip (L/100 km)"
+        ],
+        [
+          "tripElecCons",
+          "Average electric consumption this trip (kWh/100 km)"
+        ],
+        [
+          "tripDist",
+          "Distance of this trip"
+        ],
+        [
+          "tripFuel",
+          "Fuel used this trip (litres)"
+        ],
+        [
+          "tripKwh",
+          "Electricity used this trip (kWh, negative = more recuperated than used)"
         ],
         [
           "regen",
@@ -674,19 +715,19 @@
         ],
         [
           "s:avgCons1",
-          "Fuel and trip computer > Average consumption, trip computer 1 (estimated scale)"
+          "Fuel and trip computer > Average consumption in the car's trip computer 1 (not always this trip) (estimated scale)"
         ],
         [
           "s:avgSpeed1",
-          "Fuel and trip computer > Average speed, trip computer 1 (estimated scale)"
+          "Fuel and trip computer > Average speed in the car's trip computer 1 (not always this trip) (estimated scale)"
         ],
         [
           "s:avgCons2",
-          "Fuel and trip computer > Average consumption, trip computer 2 (estimated scale)"
+          "Fuel and trip computer > Average consumption in the car's trip computer 2 (not always this trip) (estimated scale)"
         ],
         [
           "s:avgSpeed2",
-          "Fuel and trip computer > Average speed, trip computer 2 (estimated scale)"
+          "Fuel and trip computer > Average speed in the car's trip computer 2 (not always this trip) (estimated scale)"
         ],
         [
           "s:tripTime",

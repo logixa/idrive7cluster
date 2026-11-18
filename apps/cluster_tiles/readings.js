@@ -38,6 +38,18 @@ const READINGS = {
     elecCons: { title: 'Electric consumption now (kWh/100 km, negative = recuperating)', short: 'ELECTRIC', icon: 7, kind: 'kwh100', min: -30, max: 50 },
     fuelRate: { title: 'Fuel flow (L/h)', short: 'FUEL FLOW', icon: 4, kind: 'lph', min: 0, max: 25 },
     maf: { title: 'Air mass flow (g/s)', short: 'AIR FLOW', icon: 3, kind: 'gps', min: 0, max: 120 },
+    // this trip: since the car woke up, worked out in data.js from the fuel flow, the battery power and the speed
+    // the averages the car's own trip computer offers (the head unit's Factory / Individual / Refuelling / Start of journey)
+    avgFactory: { title: "Average consumption since delivery (the car's own, as in the head unit: Factory)", short: 'AVG FACTORY', icon: 4, kind: 'l100', min: 0, max: 20 },
+    avgIndividual: { title: "Average consumption, Individual (the car's own, as in the head unit)", short: 'AVG INDIV', icon: 4, kind: 'l100', min: 0, max: 20 },
+    avgRefuel: { title: "Average consumption since refuelling (the car's own, as in the head unit)", short: 'AVG REFUEL', icon: 4, kind: 'l100', min: 0, max: 20 },
+    avgStart: { title: "Average consumption since the start of the journey (the car's own, as in the head unit)", short: 'AVG START', icon: 4, kind: 'l100', min: 0, max: 20 },
+    tripConsumption: { title: 'Average consumption this trip (fuel, or electric while no fuel was used)', short: 'TRIP AVG', icon: 4, kind: 'l100', min: 0, max: 20 },
+    tripFuelCons: { title: 'Average fuel consumption this trip (L/100 km)', short: 'TRIP AVG FUEL', icon: 4, kind: 'l100', min: 0, max: 20 },
+    tripElecCons: { title: 'Average electric consumption this trip (kWh/100 km)', short: 'TRIP AVG ELEC', icon: 7, kind: 'kwh100', min: -10, max: 40 },
+    tripDist: { title: 'Distance of this trip', short: 'TRIP KM', icon: 13, kind: 'km', min: 0, max: 300 },
+    tripFuel: { title: 'Fuel used this trip (litres)', short: 'TRIP FUEL USED', icon: 4, kind: 'litre1', min: 0, max: 30 },
+    tripKwh: { title: 'Electricity used this trip (kWh, negative = more recuperated than used)', short: 'TRIP KWH', icon: 7, kind: 'kwh', min: -5, max: 20 },
     regen: { title: 'Regeneration power (kW, from the battery power)', short: 'REGEN', icon: 7, kind: 'kw', min: 0, max: 35 },
     regenPct: { title: 'Regeneration (% of the car\'s power meter)', short: 'REGEN', icon: 7, kind: 'pct', min: 0, max: 100 },
     drivePct: { title: 'Electric drive (% of the car\'s power meter)', short: 'E-DRIVE', icon: 7, kind: 'pct', min: 0, max: 100 },
@@ -80,14 +92,14 @@ function convert(kind, v, u) {
 }
 function unitText(kind, u) {
     return { temp: '°' + (u.temp === 'f' ? 'F' : 'C'), tempDelta: '°' + (u.temp === 'f' ? 'F' : 'C'), press: u.press === 'psi' ? 'PSI' : u.press === 'kpa' ? 'KPA' : 'BAR',
-        l100: 'L/100KM', kwh100: 'KWH/100KM', lph: 'L/H', gps: 'G/S', litre: 'L',
+        l100: 'L/100KM', kwh100: 'KWH/100KM', kwh: 'KWH', lph: 'L/H', gps: 'G/S', litre: 'L', litre1: 'L',
         speed: u.speed === 'mph' ? 'mph' : 'km/h', km: u.speed === 'mph' ? 'mi' : 'km', rpm: 'rpm', pct: '%', kw: 'kW', nm: u.torque === 'lbft' ? 'lb-ft' : u.torque === 'kgm' ? 'kgm' : 'Nm', deg: '°', g: 'G' }[kind] || '';
 }
 /** Decimals for a kind in a unit. */
 function decimals(kind, v, u) {
     if (kind === 'press') return u.press === 'bar' ? (Math.abs(v) < 10 ? 2 : 0) : u.press === 'psi' && Math.abs(v) < 30 ? 1 : 0;
     if (kind === 'g') return 2;
-    if (kind === 'l100' || kind === 'kwh100' || kind === 'lph') return 1;
+    if (kind === 'l100' || kind === 'kwh100' || kind === 'lph' || kind === 'litre1' || kind === 'kwh') return 1;
     if (kind === 'gps') return Math.abs(v) < 10 ? 1 : 0;
     if (kind === 'kw' || kind === 'deg') return Math.abs(v) < 10 ? 1 : 0;
     if (kind === 'nm' && u.torque === 'kgm') return Math.abs(v) < 100 ? 1 : 0;   // kgm: a tenth of Nm's, so a decimal
@@ -101,6 +113,15 @@ function decimals(kind, v, u) {
  */
 function view(key, d, u, warn) {
     // the consumption tile follows the drive: electric while the engine is off, else fuel
+    if (/^avg(Factory|Individual|Refuel|Start)$/.test(key)) {
+        const elec = d.consumptionKind === 'electric' && isNum(d[key + 'Elec']);
+        const v = view(elec ? 'elecCons' : 'fuelCons', Object.assign({}, d, { fuelCons: d[key + 'Fuel'], elecCons: d[key + 'Elec'] }), u, warn);
+        return Object.assign({}, v, { key: key, short: READINGS[key].short, title: READINGS[key].title });
+    }
+    if (key === 'tripConsumption') {
+        const v = view(d.tripFuel > 0.05 ? 'tripFuelCons' : 'tripElecCons', d, u, warn);
+        return Object.assign({}, v, { key: 'tripConsumption' });
+    }
     if (key === 'consumption') {
         const k = d.consumptionKind === 'electric' ? 'elecCons' : 'fuelCons';
         const v = view(k, Object.assign({}, d, { consumption: d[k] }), u, warn);
