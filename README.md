@@ -59,7 +59,6 @@ The 54 curated readings (listed first in each tile's setting); [READINGS.md](REA
 | Electric consumption now (kWh/100 km, negative = recuperating) | elecCons |
 | Fuel flow (L/h) | fuelRate |
 | Air mass flow (g/s) | maf |
-| Average consumption since delivery / Individual / since refuelling / since the start of the journey (the car's own, as in the head unit) | avgFactory, avgIndividual, avgRefuel, avgStart |
 | Average consumption this trip (fuel, or electric while no fuel was used) | tripConsumption |
 | Average fuel consumption this trip (L/100 km) | tripFuelCons |
 | Average electric consumption this trip (kWh/100 km) | tripElecCons |

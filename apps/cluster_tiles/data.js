@@ -270,23 +270,6 @@ function startData(ctx, opts) {
             const fl = leaves(v).find((l) => isNum(l.v) && l.v !== 255 && l.v !== 65535 && l.v !== 0x7FFF && l.v >= 0 && /fuel|kraftstoff|benzin|diesel/i.test(l.key) && /consum|verbrauch/i.test(l.key));
             if (fl) put('carFuelCons', fl.v > 60 ? fl.v / 10 : fl.v);
         },
-        // the averages the head unit offers (Factory, Individual, Refuelling, Start of journey): any field named for
-        // the period (and, for the electric one, for electricity); the raw value goes to the log ('raw averageConsumption')
-        averageConsumption: (v) => { try {
-            fes('averageConsumption')(v);
-            // every field as it comes, for the 'Check: average consumption fields' reading
-            x.avgLeaves = leaves(v).filter((l) => isNum(l.v)).map((l) => ({ key: String(l.key), v: l.v }));
-            x.at.avgLeaves = Date.now();
-            leaves(v).forEach((l) => {
-                if (!isNum(l.v) || l.v === 255 || l.v === 65535 || l.v === 0x7FFF || l.v < 0) return;
-                const k = String(l.key);
-                const period = /factory|werk|delivery|lifetime/i.test(k) ? 'Factory' : /individual|indiv|user|custom/i.test(k) ? 'Individual'
-                    : /refuel|tank|fill/i.test(k) ? 'Refuel' : /journey|trip|start|fahrt|reise/i.test(k) ? 'Start' : null;
-                if (!period) return;
-                const elec = /elec|elektr|strom|kwh|ev/i.test(k);
-                put('avg' + period + (elec ? 'Elec' : 'Fuel'), elec ? (l.v > 100 ? l.v / 10 : l.v) : (l.v > 30 ? l.v / 10 : l.v));
-            });
-        } catch (e) { /* a shape not known: no averages, the rest runs on */ } },
     }, 'consumption now', { pollMs: 2000 });
     // the cruise control's set speed as the head-up display shows it (the driving assistant's view services send nothing
     // on this car): 0 or invalid while it is off; in the display's unit
@@ -580,12 +563,7 @@ function startData(ctx, opts) {
                 wantedSig.forEach((k) => { const sv = sigs.value(k, { press: carPress }); if (sv) { o[k] = sv.v; if (sv.u) (o.__u || (o.__u = {}))[k] = sv.u; } });
             }
             // the readings that move fast (air flow, fuel flow, the car's power meter) are only good a few seconds
-            ['maf', 'fuelRate', 'pwrDrive', 'pwrRecup', 'carElecCons', 'carFuelCons'].concat(['Factory', 'Individual', 'Refuel', 'Start'].reduce((a, p) => a.concat(['avg' + p + 'Fuel', 'avg' + p + 'Elec']), [])).forEach((k) => { if (!d.demo && fresh(k, 5000)) o[k] = x[k]; });
-            // the check reading: one field of the car's average consumption signal at a time, every 3 seconds
-            if (!d.demo && x.avgLeaves && x.avgLeaves.length) {
-                const lf = x.avgLeaves[Math.floor(Date.now() / 3000) % x.avgLeaves.length];
-                o.avgRaw = lf.v; (o.__u || (o.__u = {})).avgRaw = lf.key.replace(/^consumption/i, '').replace(/([a-z0-9])([A-Z])/g, '$1 $2').split(/[ _]+/).map((w) => w.slice(0, 4)).join(' ').toUpperCase().slice(0, 18);
-            }
+            ['maf', 'fuelRate', 'pwrDrive', 'pwrRecup', 'carElecCons', 'carFuelCons'].forEach((k) => { if (!d.demo && fresh(k, 5000)) o[k] = x[k]; });
             // boost: the engine unit's (fast, while a layout wants it), else the car's sport display signal
             if (!isNum(o.boostActual) && !d.demo && fresh('boostCar', 5000)) o.boostActual = x.boostCar;
             if (d.demo) Object.assign(o, demo(d));

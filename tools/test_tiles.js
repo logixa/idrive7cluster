@@ -99,17 +99,6 @@ const texts = (ps, d, t) => ps.filter((p) => p.kind === 'text').map((p) => (type
             d = D.data();
             assert.strictEqual(d.consumptionKind, 'fuel'); assert.strictEqual(d.engineOn, true);
             assert(Math.abs(d.fuelCons - 7.2) < 1e-9, String(d.fuelCons)); assert.strictEqual(d.consumption, d.fuelCons);
-            // the car's own averages (head unit: Factory / Individual / Refuelling / Start of journey), by field name
-            handlers.averageConsumption({ consumptionFuelAverageFactory: 81, consumptionFuelAverageRefuel: 64, consumptionFuelAverageStartOfJourney: 59 });
-            d = D.data();
-            assert(Math.abs(d.avgFactoryFuel - 8.1) < 1e-9 && Math.abs(d.avgRefuelFuel - 6.4) < 1e-9 && Math.abs(d.avgStartFuel - 5.9) < 1e-9, JSON.stringify([d.avgFactoryFuel, d.avgRefuelFuel, d.avgStartFuel]));
-            const av = require(path.join(APP, 'readings')).view('avgStart', d, { temp: 'c', press: 'bar', speed: 'kmh', torque: 'nm' });
-            assert.strictEqual(av.text, '5.9'); assert.strictEqual(av.short, 'AVG START');
-            // odd shapes of the average signal never break the data (nested, arrays, text, nothing)
-            [{ a: { b: 5 }, c: [1, 2], d: 'x', e: null }, 'text', null, undefined, 7, [], { consumptionAverage: [{ factory: 81 }] }].forEach((shape) => {
-                handlers.averageConsumption(shape); d = D.data();
-            });
-            assert(isFinite(d.avgRaw) || d.avgRaw === undefined, 'check reading');
             // no car field: the engine unit's fuel flow (6.58 L/h at 80 km/h = 8.2 L/100 km); air flow is not used
             const D2 = startData(ctx, { shown: () => false });
             const h2 = handlers;

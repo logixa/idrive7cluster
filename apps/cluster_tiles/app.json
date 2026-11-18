@@ -2,7 +2,7 @@
   "id": "cluster_tiles",
   "title": "Cluster Tiles",
   "description": "Six live data tiles in the centre of the factory cluster (oil, coolant, gearbox and intake air temperature, fuel or electric consumption with regeneration, and more): you choose what each tile shows",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "startType": "autostart",
   "vendor": "custom",
   "loggingId": "OA9T",
@@ -90,8 +90,7 @@
     },
     "de.bmw.infotainment.resetlogic.ResetLogic": {
       "_optional": "the consumption now (a candidate for the fast kW)",
-      "currentConsumption": "rs",
-      "averageConsumption": "rs"
+      "currentConsumption": "rs"
     },
     "de.bmw.infotainment.displaydataserver.DisplayDataServer": {
       "_optional": "the cruise control's set speed",
@@ -300,26 +299,6 @@
         [
           "maf",
           "Air mass flow (g/s)"
-        ],
-        [
-          "avgFactory",
-          "Average consumption since delivery (the car's own, as in the head unit: Factory)"
-        ],
-        [
-          "avgIndividual",
-          "Average consumption, Individual (the car's own, as in the head unit)"
-        ],
-        [
-          "avgRefuel",
-          "Average consumption since refuelling (the car's own, as in the head unit)"
-        ],
-        [
-          "avgStart",
-          "Average consumption since the start of the journey (the car's own, as in the head unit)"
-        ],
-        [
-          "avgRaw",
-          "Check: the fields of the car's average consumption (one at a time, name under the value)"
         ],
         [
           "tripConsumption",

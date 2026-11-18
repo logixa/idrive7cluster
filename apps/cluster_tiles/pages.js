@@ -139,7 +139,7 @@ function slotted(group, keys, style, o, subs) {
 /* What the engine unit has to be asked for (data.js want(): the keys it reads fast) for a reading on a tile. */
 const NEEDS = {
     iat: ['iat'], iatRise: ['iat'], gearbox: ['gearbox'], hpfp: ['hpfp'], lpfp: ['lpfp'], boostActual: ['boostActual'], boostTarget: ['boostTarget'],
-    timing: ['timing'], consumption: ['fuelRate'], avgRaw: [], avgFactory: [], avgIndividual: [], avgRefuel: [], avgStart: [], fuelCons: ['fuelRate'], fuelRate: ['fuelRate'], maf: ['maf'],
+    timing: ['timing'], consumption: ['fuelRate'],  fuelCons: ['fuelRate'], fuelRate: ['fuelRate'], maf: ['maf'],
     loadActual: ['loadActual'], loadTarget: ['loadTarget'], throttle: ['throttle'],
 };
 const needsOf = (slots) => Array.from(new Set([].concat(...slots.map((k) => NEEDS[k] || (/^[sd]:/.test(k) ? [k] : [])))));
