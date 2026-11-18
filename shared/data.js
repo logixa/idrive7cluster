@@ -198,7 +198,8 @@ function startData(ctx, opts) {
     /** A number under one of these field names however deep, or null; the binding's invalid values (all bits set) left out. */
     const numAt = (v, key) => { const e = entries(v, key)[0]; const n = e ? e[key] : undefined; return isNum(n) && n !== 255 && n !== 65535 && n !== 0x7FFF && n !== 0xFFFFFFFF ? n : null; };
     const fes = (name) => (v) => {
-        const j = JSON.stringify(v);
+        let j; try { j = JSON.stringify(v); } catch (e) { j = String(v); }
+        if (typeof j !== 'string') j = String(v);
         if (raw[name] !== j) {
             raw[name] = j;
             const n = rawLogged[name] = (rawLogged[name] || 0) + 1;
@@ -271,7 +272,7 @@ function startData(ctx, opts) {
         },
         // the averages the head unit offers (Factory, Individual, Refuelling, Start of journey): any field named for
         // the period (and, for the electric one, for electricity); the raw value goes to the log ('raw averageConsumption')
-        averageConsumption: (v) => {
+        averageConsumption: (v) => { try {
             fes('averageConsumption')(v);
             // every field as it comes, for the 'Check: average consumption fields' reading
             x.avgLeaves = leaves(v).filter((l) => isNum(l.v)).map((l) => ({ key: String(l.key), v: l.v }));
@@ -285,7 +286,7 @@ function startData(ctx, opts) {
                 const elec = /elec|elektr|strom|kwh|ev/i.test(k);
                 put('avg' + period + (elec ? 'Elec' : 'Fuel'), elec ? (l.v > 100 ? l.v / 10 : l.v) : (l.v > 30 ? l.v / 10 : l.v));
             });
-        },
+        } catch (e) { /* a shape not known: no averages, the rest runs on */ } },
     }, 'consumption now', { pollMs: 2000 });
     // the cruise control's set speed as the head-up display shows it (the driving assistant's view services send nothing
     // on this car): 0 or invalid while it is off; in the display's unit
@@ -545,7 +546,7 @@ function startData(ctx, opts) {
         o.drivePct = isNum(o.pwrDrive) ? o.pwrDrive : undefined;
         o.consumptionKind = off ? 'electric' : o.engineOn ? 'fuel' : isNum(o.elecCons) ? 'electric' : 'fuel';
         o.consumption = o.consumptionKind === 'electric' ? o.elecCons : o.fuelCons;
-        tripOf(o, t);
+        try { tripOf(o, t); } catch (e) { /* the trip numbers are left out, the rest runs on */ }
     }
 
     return {
