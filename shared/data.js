@@ -584,7 +584,7 @@ function startData(ctx, opts) {
             // the check reading: one field of the car's average consumption signal at a time, every 3 seconds
             if (!d.demo && x.avgLeaves && x.avgLeaves.length) {
                 const lf = x.avgLeaves[Math.floor(Date.now() / 3000) % x.avgLeaves.length];
-                o.avgRaw = lf.v; (o.__u || (o.__u = {})).avgRaw = lf.key.replace(/^consumption/i, '').slice(-16).toUpperCase();
+                o.avgRaw = lf.v; (o.__u || (o.__u = {})).avgRaw = lf.key.replace(/^consumption/i, '').replace(/([a-z0-9])([A-Z])/g, '$1 $2').split(/[ _]+/).map((w) => w.slice(0, 4)).join(' ').toUpperCase().slice(0, 18);
             }
             // boost: the engine unit's (fast, while a layout wants it), else the car's sport display signal
             if (!isNum(o.boostActual) && !d.demo && fresh('boostCar', 5000)) o.boostActual = x.boostCar;
